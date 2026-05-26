@@ -161,12 +161,12 @@ WITH first_purchases AS (
 )
 
 SELECT
-    -- Склеиваем полное имя покупателя
+    -- Выводим дату первой покупки (чистая простая колонка — идет первой)
+    f.sale_date,
+    -- Склеиваем полное имя покупателя (вычисление — идет ниже)
     c.first_name || ' ' || c.last_name AS customer,
-    -- Склеиваем полное имя продавца
-    e.first_name || ' ' || e.last_name AS seller,
-    -- Выводим дату первой покупки
-    f.sale_date
+    -- Склеиваем полное имя продавца (вычисление)
+    e.first_name || ' ' || e.last_name AS seller
 FROM first_purchases AS f
 -- Присоединяем таблицу товаров
 INNER JOIN products AS p
