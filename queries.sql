@@ -14,6 +14,7 @@ with sellers_names as (
 )
 
 select
+    sn.seller_id,
     sn.seller,
     -- Считаем количество уникальных сделок
     --для каждого продавца
