@@ -13,6 +13,7 @@ WITH sellers_names AS (
 )
 
 SELECT
+    sn.seller_id,
     sn.seller,
     -- Считаем количество уникальных сделок для каждого продавца
     count(DISTINCT s.sales_id) AS operations,
@@ -45,6 +46,7 @@ WITH sellers_names AS (
 )
 
 SELECT
+    sn.seller_id,
     sn.seller,
     -- Считаем средний чек продавца
     floor(avg(p.price * s.quantity))::BIGINT AS average_income
@@ -81,6 +83,7 @@ WITH sellers_names AS (
 )
 
 SELECT
+    sn.seller_id,
     sn.seller,
     -- Вытаскиваем название дня недели из даты
     to_char(s.sale_date, 'fmday') AS day_of_week,
@@ -94,6 +97,7 @@ INNER JOIN products AS p
     ON s.product_id = p.product_id
 -- Группируем данные
 GROUP BY
+    sn.seller_id,
     sn.seller,
     day_of_week,
     -- Группируем по ID дня (ISO-день: 1 = Monday, 7 = Sunday)
@@ -161,9 +165,9 @@ WITH first_purchases AS (
 )
 
 SELECT
-    -- Выводим дату первой покупки (чистая простая колонка — идет первой)
+    -- Выводим дату первой покупки (простая колонка)
     f.sale_date,
-    -- Склеиваем полное имя покупателя (вычисление — идет ниже)
+    -- Склеиваем полное имя покупателя (вычисление)
     c.first_name || ' ' || c.last_name AS customer,
     -- Склеиваем полное имя продавца (вычисление)
     e.first_name || ' ' || e.last_name AS seller
