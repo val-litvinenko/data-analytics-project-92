@@ -1,118 +1,122 @@
 -- Получение общего количества клиентов в базе
-select count(*) as customers_count from customers;
+SELECT count(*) AS customers_count FROM customers;
 
 ----------------------------------------------------------------------------------------------
 
 --top_10_total_income.csv
 --Создаем временную таблицу (CTE) с полными именами и ID продавцов
-with sellers_names as (
-    select 
-        e.first_name || ' ' || e.last_name as seller,
-        e.employee_id as seller_id
-    from employees e
+WITH sellers_names AS (
+    SELECT
+        e.first_name || ' ' || e.last_name AS seller
+        , e.employee_id AS seller_id
+    FROM employees AS e
 )
 
-select
-    seller,
+SELECT
+    sn.seller
     -- Считаем количество уникальных сделок для каждого продавца
-    count(distinct s.sales_id) as operations,
+    , count(DISTINCT s.sales_id) AS operations
     -- Считаем общую сумму продаж (цена товара * кол-во) и приводим к bigint, округляем
-    floor(sum(p.price * s.quantity))::bigint as income
-from sellers_names sn
+    , floor(sum(p.price * s.quantity))::BIGINT AS income
+FROM sellers_names AS sn
 -- Соединяем имена с таблицей продаж и информацией о товарах
-inner join sales s 
-   on sn.seller_id = s.sales_person_id
-inner join products p
-   on p.product_id = s.product_id
+INNER JOIN sales AS s
+    ON sn.seller_id = s.sales_person_id
+INNER JOIN products AS p
+    ON p.product_id = s.product_id
 -- Группируем данные, чтобы всё считалось для каждого продавца отдельно
-group by sn.seller_id, sn.seller
+GROUP BY
+    sn.seller_id
+    , sn.seller
 -- Сортируем по выручке: от самых прибыльных к менее прибыльным
-order by income desc
+ORDER BY income DESC
 -- Ограничиваем вывод до первых десяти лидеров 
-limit 10;
+LIMIT 10;
 
 ----------------------------------------------------------------------------------------------
 
 --lowest_average_income.csv
 --Создаем временную таблицу (CTE) с полными именами и ID продавцов
-with sellers_names as (
-    select 
-        e.first_name || ' ' || e.last_name as seller,
-        e.employee_id as seller_id
-    from employees e
+WITH sellers_names AS (
+    SELECT
+        e.first_name || ' ' || e.last_name AS seller
+        , e.employee_id AS seller_id
+    FROM employees AS e
 )
 
-select
-    seller,
+SELECT
+    sn.seller
     -- Считаем средний чек продавца
-    floor(avg(p.price * s.quantity))::bigint as average_income
-from sellers_names sn
+    , floor(avg(p.price * s.quantity))::BIGINT AS average_income
+FROM sellers_names AS sn
 -- Соединяем продавцов со сделками и товарами
-inner join sales s 
-   on sn.seller_id = s.sales_person_id
-inner join products p
-   on p.product_id = s.product_id
+INNER JOIN sales AS s
+    ON sn.seller_id = s.sales_person_id
+INNER JOIN products AS p
+    ON p.product_id = s.product_id
 -- Группируем по ID и имени
-group by sn.seller_id, sn.seller
+GROUP BY
+    sn.seller_id
+    , sn.seller
 -- Фильтруем группы: оставляем тех, кто заработал меньше среднего по всем продажам
-having avg(p.price * s.quantity) < (
+HAVING avg(p.price * s.quantity) < (
     -- Вложенный запрос: вычисляем среднее значение по всем продажам в базе
-    select avg(p2.price * s2.quantity)
-    from sales s2
-    inner join products p2
-    on s2.product_id = p2.product_id
+    SELECT avg(p2.price * s2.quantity)
+    FROM sales AS s2
+    INNER JOIN products AS p2
+        ON s2.product_id = p2.product_id
 )
 -- Сортируем результат от меньшего дохода к большему
-order by average_income;
+ORDER BY average_income;
 
 ----------------------------------------------------------------------------------------------
 
 --day_of_the_week_income.csv
 --Создаем временную таблицу (CTE) с полными именами и ID продавцов
-with sellers_names as (
-  select 
-    e.first_name || ' ' || e.last_name as seller, -- Склеиваем имя и фамилию
-    e.employee_id as seller_id
-  from employees e
+WITH sellers_names AS (
+    SELECT
+        e.first_name || ' ' || e.last_name AS seller -- Склеиваем имя и фамилию
+        , e.employee_id AS seller_id
+    FROM employees AS e
 )
 
-select
-  seller,
-  -- Вытаскиваем название дня недели из даты
-  TO_CHAR(sale_date, 'fmday') as day_of_week,
-  -- Считаем общую сумму продаж (количество * цена) приводим к bigint и округляем до целого
-  floor(sum(s.quantity * p.price))::bigint as income
-from sellers_names sn
+SELECT
+    sn.seller
+    -- Вытаскиваем название дня недели из даты
+    , to_char(s.sale_date, 'fmday') AS day_of_week
+    -- Считаем общую сумму продаж (количество * цена) приводим к bigint и округляем до целого
+    , floor(sum(s.quantity * p.price))::BIGINT AS income
+FROM sellers_names AS sn
 -- Объединяем таблицы
-inner join sales s
-  on s.sales_person_id = sn.seller_id
-inner join products p
-  on p.product_id = s.product_id
+INNER JOIN sales AS s
+    ON s.sales_person_id = sn.seller_id
+INNER JOIN products AS p
+    ON p.product_id = s.product_id
 -- Группируем данные
-group by 
-  seller, 
-  day_of_week, 
-  TO_CHAR(sale_date, 'ID') -- Группируем по ID дня (ISO-день: 1 = Monday, 7 = Sunday), чтобы корректно работала сортировка
+GROUP BY
+    sn.seller
+    , day_of_week
+    , to_char(s.sale_date, 'ID') -- Группируем по ID дня (ISO-день: 1 = Monday, 7 = Sunday), чтобы корректно работала сортировка
 -- Сортируем: сначала по номеру дня недели, затем по продавцам внутри каждого дня
-order by 
-  TO_CHAR(sale_date, 'ID'), 
-  seller;
+ORDER BY
+    to_char(s.sale_date, 'ID')
+    , sn.seller;
 
 ----------------------------------------------------------------------------------------------
 
 --age_groups.csv
 
-SELECT 
-  -- Распределяем покупателей по категориям на основе столбца age
-  CASE 
-    WHEN age BETWEEN 16 AND 25 THEN '16-25' -- Если возраст от 16 до 25 включительно
-    WHEN age BETWEEN 26 AND 40 THEN '26-40' -- Если возраст от 26 до 40 включительно
-    WHEN age > 40 THEN '40+'                -- Если возраст строго больше 40
-  END AS age_category,
-  -- Подсчитываем общее количество покупателей для каждой категории
-  COUNT(*) AS age_count
+SELECT
+    -- Распределяем покупателей по категориям на основе столбца age
+    CASE
+        WHEN c.age BETWEEN 16 AND 25 THEN '16-25' -- Если возраст от 16 до 25 включительно
+        WHEN c.age BETWEEN 26 AND 40 THEN '26-40' -- Если возраст от 26 до 40 включительно
+        WHEN c.age > 40 THEN '40+'                -- Если возраст строго больше 40
+    END AS age_category
+    -- Подсчитываем общее количество покупателей для каждой категории
+    , count(*) AS age_count
 -- Берем данные из таблицы customers
-FROM customers c 
+FROM customers AS c
 -- Группируем данные по возрастным категориям
 GROUP BY age_category
 -- Сортируем итоговую таблицу по имени категории по возрастанию
@@ -122,59 +126,57 @@ ORDER BY age_category;
 
 --customers_by_month.csv 
 
-select
-  -- Преобразуем дату продажи в текстовый формат ГОД-МЕСЯЦ
-  TO_CHAR(s.sale_date, 'YYYY-MM') as selling_month,
-  -- Подсчитываем уникальных покупателей в каждом месяце
-  COUNT(distinct s.customer_id) as total_customers,
-  -- Вычисляем общую выручку (цена * количество) и округляем до целого
-  floor(sum(p.price * s.quantity))::bigint as income
-from sales s
+SELECT
+    -- Преобразуем дату продажи в текстовый формат ГОД-МЕСЯЦ
+    to_char(s.sale_date, 'YYYY-MM') AS selling_month
+    -- Подсчитываем уникальных покупателей в каждом месяце
+    , count(DISTINCT s.customer_id) AS total_customers
+    -- Вычисляем общую выручку (цена * количество) и округляем до целого
+    , floor(sum(p.price * s.quantity))::BIGINT AS income
+FROM sales AS s
 -- Присоединяем таблицу товаров, чтобы получить цены
-inner join products p
- on s.product_id = p.product_id 
+INNER JOIN products AS p
+    ON s.product_id = p.product_id
 -- Группируем данные по месяцам
-group by TO_CHAR(s.sale_date, 'YYYY-MM')
+GROUP BY to_char(s.sale_date, 'YYYY-MM')
 -- Сортируем итоговую таблицу
-order by selling_month;
+ORDER BY selling_month;
 
 ----------------------------------------------------------------------------------------------
 
 --special_offer.csv
 
 --Создаем CTE для поиска самой первой покупки каждого клиента
-with first_purchases as (
-  -- Берем только первую уникальную запись по ID покупателя
-  select DISTINCT ON (customer_id)
-    customer_id,
-    sale_date,
-    sales_person_id,
-    product_id
-  from sales
-  -- Сортируем по покупателю и дате, чтобы взять именно самую раннюю сделку
-  order by customer_id, sale_date
+WITH first_purchases AS (
+    -- Берем только первую уникальную запись по ID покупателя
+    SELECT DISTINCT ON (customer_id)
+        customer_id
+        , sale_date
+        , sales_person_id
+        , product_id
+    FROM sales
+    -- Сортируем по покупателю и дате, чтобы взять именно самую раннюю сделку
+    ORDER BY customer_id, sale_date
 )
 
-select
--- Склеиваем полное имя покупателя
-  c.first_name || ' ' || c.last_name as customer,
-  -- Выводим дату первой покупки
-  f.sale_date as sale_date,
---  Склеиваем полное имя продавца
-  e.first_name || ' ' || e.last_name as seller
-from first_purchases f
+SELECT
+    -- Склеиваем полное имя покупателя
+    c.first_name || ' ' || c.last_name AS customer
+    -- Выводим дату первой покупки
+    , f.sale_date AS sale_date
+    -- Склеиваем полное имя продавца
+    , e.first_name || ' ' || e.last_name AS seller
+FROM first_purchases AS f
 -- Присоединяем таблицу товаров, чтобы проверить их стоимость
-inner join products p 
-  on f.product_id = p.product_id 
+INNER JOIN products AS p
+    ON f.product_id = p.product_id
 -- Подтягиваем данные покупателей для формирования полного имени
-inner join customers c 
-  on f.customer_id = c.customer_id
+INNER JOIN customers AS c
+    ON f.customer_id = c.customer_id
 -- Подтягиваем данные продавцов для формирования полного имени
-inner join employees e
-  on f.sales_person_id = e.employee_id
+INNER JOIN employees AS e
+    ON f.sales_person_id = e.employee_id
 -- Фильтруем результат: оставляем только тех, чья первая покупка была бесплатной
-where p.price = 0
+WHERE p.price = 0
 -- Сортируем итоговую таблицу по ID покупателя
-order by f.customer_id;
-
-----------------------------------------------------------------------------------------------
+ORDER BY f.customer_id;
