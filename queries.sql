@@ -1,5 +1,5 @@
 -- Получение общего количества клиентов в базе
-select count (*) from customers;
+select count(*) as customers_count from customers;
 
 ----------------------------------------------------------------------------------------------
 
@@ -16,8 +16,8 @@ select
     seller,
     -- Считаем количество уникальных сделок для каждого продавца
     count(distinct s.sales_id) as operations,
-    -- Считаем общую сумму продаж (цена товара * кол-во) и округляем до целого
-    round(sum(p.price * s.quantity), 0) as income
+    -- Считаем общую сумму продаж (цена товара * кол-во) и приводим к bigint, округляем
+    floor(sum(p.price * s.quantity))::bigint as income
 from sellers_names sn
 -- Соединяем имена с таблицей продаж и информацией о товарах
 inner join sales s 
@@ -57,7 +57,7 @@ group by sn.seller_id, sn.seller
 -- Фильтруем группы: оставляем тех, кто заработал меньше среднего по всем продажам
 having avg(p.price * s.quantity) < (
     -- Вложенный запрос: вычисляем среднее значение по всем продажам в базе
-    select round(avg(p2.price * s2.quantity), 0)
+    select avg(p2.price * s2.quantity)
     from sales s2
     inner join products p2
     on s2.product_id = p2.product_id
@@ -80,9 +80,9 @@ select
   seller,
   -- Вытаскиваем название дня недели из даты
   -- 'FMDay' вместо TRIM для удаления пробелов
-  TO_CHAR(sale_date, 'FMDay') as day_of_week,
-  -- Считаем общую сумму продаж (количество * цена) и округляем до целого
-  ROUND(SUM(s.quantity * p.price), 0) as income
+  INITCAP(TO_CHAR(sale_date, 'FMDay')) as day_of_week,
+  -- Считаем общую сумму продаж (количество * цена) приводим к bigint и округляем до целого
+  floor(SUM(s.quantity * p.price))::bigint as income
 from sellers_names sn
 -- Объединяем таблицы
 inner join sales s
@@ -157,12 +157,12 @@ with first_purchases as (
 )
 
 select
-  -- Склеиваем полное имя покупателя
-  CONCAT_WS(' ', c.first_name, c.middle_initial, c.last_name) as customer,
+-- Склеиваем полное имя покупателя превращаем пустые строки '' в NULL через NULLIF, чтобы избежать двойных пробелов
+  CONCAT_WS(' ', c.first_name, NULLIF(c.middle_initial, ''), c.last_name) as customer,
   -- Выводим дату первой покупки
   f.sale_date as sale_date,
-  -- Склеиваем полное имя продавца
-  CONCAT_WS(' ', e.first_name, UPPER(e.middle_initial), e.last_name) as seller   
+-- Убираем middle_initial для продавцов, так как тест ждет только имя и фамилию
+  e.first_name || ' ' || e.last_name as seller 
 from first_purchases f
 -- Присоединяем таблицу товаров, чтобы проверить их стоимость
 inner join products p 
