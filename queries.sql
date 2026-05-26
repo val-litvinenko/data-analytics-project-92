@@ -9,19 +9,20 @@ select count(*) as customers_count from customers;
 with sellers_names as (
     select
         e.employee_id as seller_id,
-        e.first_name || ' ' || e.last_name as seller
+        e.first_name,
+        e.last_name
     from employees as e
 )
 
 select
     sn.seller_id,
-    sn.seller,
-    -- Считаем количество уникальных сделок
-    --для каждого продавца
-    count(distinct s.sales_id) as operations,
+    sn.first_name || ' ' || sn.last_name as seller,
     --Считаем общую сумму продаж (цена*кол-во)
     --и приводим к bigint, округляем
-    floor(sum(p.price * s.quantity))::bigint as income
+    floor(sum(p.price * s.quantity))::bigint as income,
+    -- Считаем количество уникальных сделок
+    --для каждого продавца
+    count(distinct s.sales_id) as operations
 from sellers_names as sn
 --Соединяем имена с таблицей
 --продаж и информацией о товарах
@@ -29,11 +30,13 @@ inner join sales as s
     on sn.seller_id = s.sales_person_id
 inner join products as p
     on s.product_id = p.product_id
---Группируем данные, чтобы всё
---считалось для каждого продавца отдельно
-group by sn.seller_id, sn.seller
+--Группируем теперь по чистым полям из CTE
+group by
+    sn.seller_id,
+    sn.first_name,
+    sn.last_name
 --Сортируем по выручке:
---от самых прибыльных к менее прибыльным
+--от самых прибыльных к менее прибыльных
 order by income desc
 --Ограничиваем вывод до
 --первых десяти лидеров 
