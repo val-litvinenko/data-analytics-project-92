@@ -81,7 +81,7 @@ select
   -- Вытаскиваем название дня недели из даты
   TO_CHAR(sale_date, 'fmday') as day_of_week,
   -- Считаем общую сумму продаж (количество * цена) приводим к bigint и округляем до целого
-  floor(SUM(s.quantity * p.price))::bigint as income
+  floor(sum(s.quantity * p.price))::bigint as income
 from sellers_names sn
 -- Объединяем таблицы
 inner join sales s
@@ -128,7 +128,7 @@ select
   -- Подсчитываем уникальных покупателей в каждом месяце
   COUNT(distinct s.customer_id) as total_customers,
   -- Вычисляем общую выручку (цена * количество) и округляем до целого
-  SUM(floor(p.price * s.quantity))::bigint as income
+  floor(sum(p.price * s.quantity))::bigint as income
 from sales s
 -- Присоединяем таблицу товаров, чтобы получить цены
 inner join products p
