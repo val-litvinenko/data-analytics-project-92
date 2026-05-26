@@ -1,48 +1,46 @@
---Получение общего количества
---клиентов в базе
+-- noqa: disable=ST06
+-- Получение общего количества
+-- клиентов в базе
 
 select count(*) as customers_count from customers;
 
---top_10_total_income.csv
---Создаем временную таблицу (CTE
---с полными именами и ID продавцов
+-- top_10_total_income.csv
+
+-- Создаем временную таблицу (CTE
+-- с полными именами и ID продавцов
 with sellers_names as (
     select
         e.employee_id as seller_id,
-        e.first_name,
-        e.last_name
+        e.first_name || ' ' || e.last_name as seller
     from employees as e
 )
 
 select
-    sn.seller_id,
-    sn.first_name || ' ' || sn.last_name as seller,
+    sn.seller,
+    -- Считаем количество уникальных сделок
+    -- для каждого продавца
+    count(distinct s.sales_id) as operations,
     --Считаем общую сумму продаж (цена*кол-во)
     --и приводим к bigint, округляем
-    floor(sum(p.price * s.quantity))::bigint as income,
-    -- Считаем количество уникальных сделок
-    --для каждого продавца
-    count(distinct s.sales_id) as operations
+    floor(sum(p.price * s.quantity))::bigint as income
 from sellers_names as sn
---Соединяем имена с таблицей
---продаж и информацией о товарах
+-- Соединяем имена с таблицей
+-- продаж и информацией о товарах
 inner join sales as s
     on sn.seller_id = s.sales_person_id
 inner join products as p
     on s.product_id = p.product_id
---Группируем теперь по чистым полям из CTE
-group by
-    sn.seller_id,
-    sn.first_name,
-    sn.last_name
---Сортируем по выручке:
---от самых прибыльных к менее прибыльных
+-- Группируем данные, чтобы всё
+-- считалось для каждого продавца отдельно
+group by sn.seller_id, sn.seller
+-- Сортируем по выручке:
+-- от самых прибыльных к менее прибыльным
 order by income desc
---Ограничиваем вывод до
---первых десяти лидеров 
+-- Ограничиваем вывод до
+-- первых десяти лидеров
 limit 10;
 
---lowest_average_income.csv
+-- lowest_average_income.csv
 
 --Создаем временную таблицу (CTE)
 --с полными именами и ID продавцов
