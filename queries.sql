@@ -45,7 +45,7 @@ with sellers_names as (
 select
     seller,
     -- Считаем средний чек продавца
-    round(avg(p.price * s.quantity), 0) as average_income
+    floor(avg(p.price * s.quantity))::bigint as average_income
 from sellers_names sn
 -- Соединяем продавцов со сделками и товарами
 inner join sales s 
@@ -79,8 +79,7 @@ with sellers_names as (
 select
   seller,
   -- Вытаскиваем название дня недели из даты
-  -- 'FMDay' вместо TRIM для удаления пробелов
-  INITCAP(TO_CHAR(sale_date, 'FMDay')) as day_of_week,
+  TO_CHAR(sale_date, 'fmday') as day_of_week,
   -- Считаем общую сумму продаж (количество * цена) приводим к bigint и округляем до целого
   floor(SUM(s.quantity * p.price))::bigint as income
 from sellers_names sn
@@ -129,13 +128,13 @@ select
   -- Подсчитываем уникальных покупателей в каждом месяце
   COUNT(distinct s.customer_id) as total_customers,
   -- Вычисляем общую выручку (цена * количество) и округляем до целого
-  ROUND(SUM(p.price * s.quantity), 0) as income
+  SUM(floor(p.price * s.quantity))::bigint as income
 from sales s
 -- Присоединяем таблицу товаров, чтобы получить цены
 inner join products p
  on s.product_id = p.product_id 
 -- Группируем данные по месяцам
-group by selling_month
+group by TO_CHAR(s.sale_date, 'YYYY-MM')
 -- Сортируем итоговую таблицу
 order by selling_month;
 
@@ -157,12 +156,12 @@ with first_purchases as (
 )
 
 select
--- Склеиваем полное имя покупателя превращаем пустые строки '' в NULL через NULLIF, чтобы избежать двойных пробелов
-  CONCAT_WS(' ', c.first_name, NULLIF(c.middle_initial, ''), c.last_name) as customer,
+-- Склеиваем полное имя покупателя
+  c.first_name || ' ' || c.last_name as customer,
   -- Выводим дату первой покупки
   f.sale_date as sale_date,
--- Убираем middle_initial для продавцов, так как тест ждет только имя и фамилию
-  e.first_name || ' ' || e.last_name as seller 
+--  Склеиваем полное имя продавца
+  e.first_name || ' ' || e.last_name as seller
 from first_purchases f
 -- Присоединяем таблицу товаров, чтобы проверить их стоимость
 inner join products p 
