@@ -59,13 +59,13 @@ GROUP BY
     sn.seller_id,
     sn.seller
 -- Фильтруем группы: оставляем тех, кто заработал меньше среднего
-HAVING avg(p.price * s.quantity) < (
-    -- Вложенный запрос: среднее значение по всем продажам
-    SELECT avg(p2.price * s2.quantity)
-    FROM sales AS s2
-    INNER JOIN products AS p2
-        ON s2.product_id = p2.product_id
-)
+HAVING
+    avg(p.price * s.quantity) < (
+        SELECT avg(p2.price * s2.quantity)
+        FROM sales AS s2
+        INNER JOIN products AS p2
+            ON s2.product_id = p2.product_id
+    )
 -- Сортируем результат от меньшего дохода к большему
 ORDER BY average_income;
 
@@ -152,9 +152,9 @@ WITH first_purchases AS (
     -- Берем только первую уникальную запись по ID покупателя
     SELECT DISTINCT ON (customer_id)
         customer_id,
-        sale_date,
         sales_person_id,
-        product_id
+        product_id,
+        sale_date
     FROM sales
     -- Сортируем по покупателю и дате
     ORDER BY customer_id, sale_date
@@ -163,10 +163,10 @@ WITH first_purchases AS (
 SELECT
     -- Склеиваем полное имя покупателя
     c.first_name || ' ' || c.last_name AS customer,
-    -- Выводим дату первой покупки (без лишнего self-alias)
-    f.sale_date,
     -- Склеиваем полное имя продавца
-    e.first_name || ' ' || e.last_name AS seller
+    e.first_name || ' ' || e.last_name AS seller,
+    -- Выводим дату первой покупки
+    f.sale_date
 FROM first_purchases AS f
 -- Присоединяем таблицу товаров
 INNER JOIN products AS p
